@@ -44,12 +44,12 @@ defmodule AyeSQL.MixProject do
 
   defp deps do
     [
-      {:ecto, "~> 3.7", optional: true},
-      {:ecto_sql, "~> 3.7", optional: true},
+      {:ecto, "~> 3.10", optional: true},
+      {:ecto_sql, "~> 3.10", optional: true},
       {:postgrex, ">= 0.0.0", optional: true},
       {:mox, "~> 1.0", only: :test, runtime: false},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
-      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14", only: :test, runtime: false}
     ]
