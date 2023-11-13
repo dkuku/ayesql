@@ -11,6 +11,7 @@ NewLine    = (\n|\r)+
 
 FunName    = {NewLine}*(\-\-)\sname\:\s[^\n\r]+
 FunDocs    = {NewLine}*(\-\-)\sdocs\:\s[^\n\r]+
+FunType    = {NewLine}*(\-\-)\stype\:\s[^\n\r]+
 Comment    = (\-\-)[^\n\r]+
 
 Atom       = [a-z_][0-9a-zA-Z_]*
@@ -26,6 +27,7 @@ Rules.
 
 {FunName}                           : new_comment(TokenLine, TokenLen, TokenChars).
 {FunDocs}                           : new_comment(TokenLine, TokenLen, TokenChars).
+{FunType}                           : new_comment(TokenLine, TokenLen, TokenChars).
 
 {NamedParam}                        : new_param(TokenLine, TokenLen, TokenChars).
 ({Comment}?|({String}|{Fragment})+) : new_fragment(TokenLine, TokenLen, TokenChars).
@@ -64,6 +66,9 @@ new_fragment(TokenLine, TokenLen, TokenChars) ->
 new_comment(TokenLine, TokenLen, "-- name: " ++ Value = TokenChars) ->
   Identifier = string:trim(Value),
   new_token("name", Identifier, TokenChars, TokenLine, TokenLen);
+new_comment(TokenLine, TokenLen, "-- type: " ++ Value = TokenChars) ->
+  Identifier = string:trim(Value),
+  new_token("type", Identifier, TokenChars, TokenLine, TokenLen);
 new_comment(TokenLine, TokenLen, "-- docs: " ++ Value = TokenChars) ->
   Documentation = string:trim(Value),
   new_token("docs", Documentation, TokenChars, TokenLine, TokenLen);

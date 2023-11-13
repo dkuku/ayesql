@@ -1,33 +1,48 @@
 Nonterminals queries named_queries named_query fragments.
-Terminals '$name' '$docs' '$fragment' '$named_param'.
+Terminals '$name' '$type' '$docs' '$fragment' '$named_param'.
 Rootsymbol queries.
 
 
-queries -> fragments     : [ {nil, nil, join_fragments('$1', [])} ].
+queries -> fragments     : [ {nil, normal, nil, join_fragments('$1', [])} ].
 queries -> named_queries : '$1'.
 
 named_queries -> named_query               : [ '$1' ].
 named_queries -> named_query named_queries : [ '$1' | '$2' ].
 
-named_query -> '$name' fragments         : {extract_value('$1'), nil, join_fragments('$2', [])}.
-named_query -> '$name' '$docs' fragments : {extract_value('$1'), extract_value('$2'), join_fragments('$3', [])}.
+named_query -> '$name' fragments
+               : {extract_name('$1'), normal, nil, join_fragments('$2', [])}.
+named_query -> '$name' '$docs' fragments
+               : {extract_name('$1'), normal, extract_docs('$2'), join_fragments('$3', [])}.
+named_query -> '$name' '$type' fragments
+               : {extract_name('$1'), extract_type('$2'), nil, join_fragments('$3', [])}.
+named_query -> '$name' '$type' '$docs' fragments
+               : {extract_name('$1'), extract_type('$2'), extract_docs('$3'), join_fragments('$4', [])}.
 
-fragments -> '$fragment'              : [ extract_value('$1') ].
-fragments -> '$named_param'           : [ extract_value('$1') ].
-fragments -> '$fragment' fragments    : [ extract_value('$1') | '$2' ].
-fragments -> '$named_param' fragments : [ extract_value('$1') | '$2' ].
+fragments -> '$fragment'              : [ extract_fragment('$1') ].
+fragments -> '$fragment' fragments    : [ extract_fragment('$1') | '$2' ].
+fragments -> '$named_param'           : [ extract_named('$1') ].
+fragments -> '$named_param' fragments : [ extract_named('$1') | '$2' ].
 
 Erlang code.
 
-extract_value({'$name', _, {Value, _, _}}) ->
-  binary_to_atom(Value);
-extract_value({'$docs', _, {<<>>, _, _}}) ->
+extract_type({'$type', _, {<<>>, _, _}}) ->
+  normal;
+extract_type({'$type', _, {Value, _, _}}) ->
+  binary_to_atom(Value).
+
+extract_name({'$name', _, {Value, _, _}}) ->
+  Value1 = [X || <<X>> <= Value, not lists:member(X, "#")],
+  list_to_atom(Value1).
+
+extract_docs({'$docs', _, {<<>>, _, _}}) ->
   nil;
-extract_value({'$docs', _, {Value, _, _}}) ->
-  Value;
-extract_value({'$fragment', _, {Value, _, _}}) ->
-  Value;
-extract_value({'$named_param', _, {Value, _, _}}) ->
+extract_docs({'$docs', _, {Value, _, _}}) ->
+  Value.
+
+extract_fragment({'$fragment', _, {Value, _, _}}) ->
+  Value.
+
+extract_named({'$named_param', _, {Value, _, _}}) ->
   binary_to_atom(Value).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

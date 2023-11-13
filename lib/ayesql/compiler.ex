@@ -20,6 +20,11 @@ defmodule AyeSQL.Compiler do
   @type fragments :: [fragment() | param()]
 
   @typedoc """
+  Query type.
+  """
+  @type type :: nil | atom()
+
+  @typedoc """
   Query name.
   """
   @type name :: nil | atom()
@@ -32,7 +37,7 @@ defmodule AyeSQL.Compiler do
   @typedoc """
   Query.
   """
-  @type query :: {name(), docs(), fragments()}
+  @type query :: {name(), type(), docs(), fragments()}
 
   @typedoc """
   Queries.
@@ -140,7 +145,7 @@ defmodule AyeSQL.Compiler do
   @spec create_queries(queries(), [Macro.t()]) :: Macro.t() | [Macro.t()]
   defp create_queries(queries, acc \\ [])
 
-  defp create_queries([{nil, nil, fragments}], _acc) do
+  defp create_queries([{nil, _any, nil, fragments}], _acc) do
     create_single_query(fragments)
   end
 
@@ -148,7 +153,10 @@ defmodule AyeSQL.Compiler do
     Enum.reverse(acc)
   end
 
-  defp create_queries([{_name, _docs, _fragments} = query | queries], acc) do
+  defp create_queries(
+         [{_name, _type, _docs, _fragments} = query | queries],
+         acc
+       ) do
     acc = [create_query!(query), create_query(query) | acc]
 
     create_queries(queries, acc)
@@ -181,7 +189,47 @@ defmodule AyeSQL.Compiler do
   end
 
   @spec create_query(query()) :: Macro.t()
-  defp create_query({name, docs, fragments}) do
+  defp create_query({name, :script, docs, fragments}) do
+    fragments = Macro.escape(fragments)
+
+    quote do
+      @doc AyeSQL.Compiler.gen_docs(unquote(docs), unquote(fragments))
+      @spec unquote(name)(AyeSQL.Core.parameters()) ::
+              {:ok, AyeSQL.Query.t() | term()}
+              | {:error, AyeSQL.Error.t() | term()}
+      @spec unquote(name)(AyeSQL.Core.parameters(), AyeSQL.Core.options()) ::
+              {:ok, AyeSQL.Query.t() | term()}
+              | {:error, AyeSQL.Error.t() | term()}
+      def unquote(name)(params, options \\ [])
+
+      def unquote(name)(params, options) do
+        options = Keyword.merge(__MODULE__.__db_options__(), options)
+
+        {index, options} = Keyword.pop(options, :index, 1)
+        {run?, options} = Keyword.pop(options, :run, true)
+
+        content = AyeSQL.AST.expand(__MODULE__, unquote(fragments))
+        context = AyeSQL.AST.Context.new(index: index)
+
+        with {:ok, %{statement: statement} = query} <-
+               AyeSQL.Core.evaluate(content, params, context) do
+          if run? do
+            statement
+            |> String.split(";", trim: true)
+            |> Enum.map(&String.trim(&1))
+            |> Enum.each(&__MODULE__.run!(%{query | statement: &1}, options))
+
+            {:ok, []}
+          else
+            {:ok, query}
+          end
+        end
+      end
+    end
+  end
+
+  @spec create_query(query()) :: Macro.t()
+  defp create_query({name, :normal, docs, fragments}) do
     fragments = Macro.escape(fragments)
 
     quote do
@@ -215,7 +263,7 @@ defmodule AyeSQL.Compiler do
   end
 
   @spec create_query!(query()) :: Macro.t()
-  defp create_query!({name, docs, _}) do
+  defp create_query!({name, _type, docs, _}) do
     name! = String.to_atom("#{name}!")
 
     quote do
@@ -297,7 +345,7 @@ defmodule AyeSQL.Compiler do
           no_return()
   defp raise_error(
          contents,
-         {line, _, ['syntax error before: ', info]},
+         {line, _, [~c"syntax error before: ", info]},
          options
        ) do
     error_context = options[:error_context] || 2

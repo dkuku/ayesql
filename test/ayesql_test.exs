@@ -110,6 +110,16 @@ defmodule AyeSQLTest do
     end
   end
 
+  describe "when query is a script" do
+    import AyeSQL, only: [defqueries: 3]
+
+    defqueries(Script, "support/script.sql", runner: TestRunner)
+
+    test "can expand query with empty params list" do
+      assert Script.set_schema([]) == {:ok, []}
+    end
+  end
+
   describe "when query does not need parameters" do
     import AyeSQL, only: [defqueries: 3]
 
