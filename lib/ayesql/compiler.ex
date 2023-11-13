@@ -22,7 +22,7 @@ defmodule AyeSQL.Compiler do
   @typedoc """
   Query type.
   """
-  @type type :: nil | atom()
+  @type type :: :normal | :script
 
   @typedoc """
   Query name.
@@ -193,7 +193,7 @@ defmodule AyeSQL.Compiler do
     fragments = Macro.escape(fragments)
 
     quote do
-      @doc AyeSQL.Compiler.gen_docs(unquote(docs), unquote(fragments))
+      @doc AyeSQL.Compiler.gen_docs(unquote(docs), :script, unquote(fragments))
       @spec unquote(name)(AyeSQL.Core.parameters()) ::
               {:ok, AyeSQL.Query.t() | term()}
               | {:error, AyeSQL.Error.t() | term()}
@@ -233,7 +233,7 @@ defmodule AyeSQL.Compiler do
     fragments = Macro.escape(fragments)
 
     quote do
-      @doc AyeSQL.Compiler.gen_docs(unquote(docs), unquote(fragments))
+      @doc AyeSQL.Compiler.gen_docs(unquote(docs), :normal, unquote(fragments))
       @spec unquote(name)(AyeSQL.Core.parameters()) ::
               {:ok, AyeSQL.Query.t() | term()}
               | {:error, AyeSQL.Error.t() | term()}
@@ -295,10 +295,10 @@ defmodule AyeSQL.Compiler do
 
   # Generates docs for a query.
   @doc false
-  @spec gen_docs(docs(), fragments()) :: binary() | boolean()
-  def gen_docs(nil, _fragments), do: false
+  @spec gen_docs(docs(), type(), fragments()) :: binary() | boolean()
+  def gen_docs(nil, _type, _fragments), do: false
 
-  def gen_docs(docs, fragments) do
+  def gen_docs(docs, type, fragments) do
     params = Enum.filter(fragments, &is_atom/1)
 
     query =
@@ -308,6 +308,7 @@ defmodule AyeSQL.Compiler do
       |> String.trim()
 
     """
+    This is a #{type} query type
     #{docs}
 
     Expected `params` are:
