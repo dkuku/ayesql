@@ -299,7 +299,10 @@ defmodule AyeSQL.Compiler do
   def gen_docs(nil, _type, _fragments), do: false
 
   def gen_docs(docs, type, fragments) do
-    params = Enum.filter(fragments, &is_atom/1)
+    params =
+      fragments
+      |> Enum.filter(&is_atom/1)
+      |> Enum.uniq()
 
     query =
       fragments
